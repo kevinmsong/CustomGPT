@@ -446,7 +446,7 @@ def main():
             # Get assistant response
             response, error = chat_with_openai(prompt, st.session_state.messages)
             if error:
-                st.error(error)st.error(error)
+                st.error(error)
             else:else:
                 assistant_message = {
                     "role": "assistant",
