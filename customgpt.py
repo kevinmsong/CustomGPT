@@ -182,7 +182,7 @@ def main():
     messages_to_display = (
         st.session_state.messages if st.session_state.show_full_history 
         else st.session_state.messages[-10:] if st.session_state.messages 
-        else []else []
+        else []
     )
     
     for message in messages_to_display:
