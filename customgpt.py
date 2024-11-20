@@ -222,7 +222,7 @@ def main():
             st.session_state.messages = []
             st.session_state.uploaded_files = []
             if os.path.exists(HISTORY_FILE):
-                os.remove(HISTORY_FILE)os.remove(HISTORY_FILE)
+                os.remove(HISTORY_FILE)
             st.experimental_rerun()
     
     # Load chat history
