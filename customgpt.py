@@ -24,6 +24,8 @@ if 'openai_key' not in st.session_state:
     st.session_state.openai_key = None
 if 'show_full_history' not in st.session_state:
     st.session_state.show_full_history = True
+if 'history_loaded' not in st.session_state:
+    st.session_state.history_loaded = False
 
 # Configuration
 HISTORY_FILE = "chat_history.json"
@@ -217,8 +219,29 @@ def openai_auth_interface():
                     return False
     return False
 
+# [Previous imports and configurations remain the same...]
+
+# Initialize session state variables if they don't exist
+if 'authenticated' not in st.session_state:
+    st.session_state.authenticated = False
+if 'messages' not in st.session_state:
+    st.session_state.messages = []
+if 'openai_key' not in st.session_state:
+    st.session_state.openai_key = None
+if 'show_full_history' not in st.session_state:
+    st.session_state.show_full_history = True
+if 'history_loaded' not in st.session_state:
+    st.session_state.history_loaded = False
+
+# [Previous functions remain the same until main()]
+
 def main():
     st.title("🤖 OpenAI Chat Interface")
+    
+    # Load history at startup if not already loaded
+    if not st.session_state.history_loaded:
+        st.session_state.messages = load_chat_history()
+        st.session_state.history_loaded = True
     
     # App Authentication
     if not st.session_state.authenticated:
@@ -228,6 +251,7 @@ def main():
             if submitted:
                 if authenticate_app(password):
                     st.session_state.authenticated = True
+                    # Don't reload messages here, they're already loaded
                     st.experimental_rerun()
                 else:
                     st.error("Incorrect password!")
@@ -243,7 +267,8 @@ def main():
     
     with col2:
         st.header("Settings")
-        show_history = st.checkbox("Show Full History", value=True)
+        show_history = st.checkbox("Show Full History", value=st.session_state.show_full_history)
+        st.session_state.show_full_history = show_history
         
         st.header("File Upload")
         uploaded_files = st.file_uploader(
@@ -267,38 +292,55 @@ def main():
                             if error:
                                 st.error(error)
                             else:
-                                st.session_state.messages.append({
+                                new_message = {
                                     "role": "assistant",
                                     "content": response,
                                     "timestamp": datetime.now().isoformat()
-                                })
+                                }
+                                st.session_state.messages.append(new_message)
+                                save_chat_history(st.session_state.messages)
                     else:
                         content, error = process_file(uploaded_file)
                         if error:
                             st.error(error)
                         else:
-                            st.session_state.messages.append({
+                            new_message = {
                                 "role": "user",
                                 "content": f"Analyzing file: {uploaded_file.name}\n\n{content}",
                                 "timestamp": datetime.now().isoformat()
-                            })
-                save_chat_history(st.session_state.messages)
+                            }
+                            st.session_state.messages.append(new_message)
+                            save_chat_history(st.session_state.messages)
         
-        if st.button("Clear History"):
-            st.session_state.messages = []
-            save_chat_history([])
+        if st.button("Clear Display"):
+            st.session_state.show_full_history = False
             st.experimental_rerun()
         
+        if st.button("Clear History"):
+            if st.session_state.messages:  # Only clear if there are messages
+                backup_file = f"chat_history_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+                save_chat_history(st.session_state.messages)  # Backup current history
+                os.rename(HISTORY_FILE, backup_file)  # Rename current history to backup
+                st.session_state.messages = []  # Clear messages in session
+                save_chat_history([])  # Create new empty history file
+                st.info(f"History cleared! Backup saved as {backup_file}")
+                st.experimental_rerun()
+        
         if st.button("Logout"):
+            # Just clear authentication, keep messages in session
             st.session_state.authenticated = False
             st.session_state.openai_key = None
-            st.session_state.messages = []
             st.experimental_rerun()
     
     with col1:
         st.header("Chat")
         # Display messages
-        messages_to_show = st.session_state.messages if show_history else st.session_state.messages[-10:]
+        messages_to_show = (
+            st.session_state.messages if st.session_state.show_full_history 
+            else st.session_state.messages[-10:] if st.session_state.messages 
+            else []
+        )
+        
         for message in messages_to_show:
             with st.chat_message(message["role"]):
                 st.write(message["content"])
@@ -316,6 +358,7 @@ def main():
                 "timestamp": datetime.now().isoformat()
             }
             st.session_state.messages.append(new_message)
+            save_chat_history(st.session_state.messages)
             
             with st.chat_message("assistant"):
                 response, error = chat_with_openai(prompt, st.session_state.messages)
@@ -323,13 +366,13 @@ def main():
                     st.error(error)
                 else:
                     st.write(response)
-                    st.session_state.messages.append({
+                    assistant_message = {
                         "role": "assistant",
                         "content": response,
                         "timestamp": datetime.now().isoformat()
-                    })
-            
-            save_chat_history(st.session_state.messages)
+                    }
+                    st.session_state.messages.append(assistant_message)
+                    save_chat_history(st.session_state.messages)
 
 if __name__ == "__main__":
     main()
