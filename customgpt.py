@@ -200,7 +200,7 @@ def main():
         
         if st.button("Clear History"):
             st.session_state.messages = []
-            st.session_state.uploaded_files = []st.session_state.uploaded_files = []
+            st.session_state.uploaded_files = []
             if os.path.exists(HISTORY_FILE):
                 os.remove(HISTORY_FILE)
             st.experimental_rerun()
