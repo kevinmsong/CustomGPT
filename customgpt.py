@@ -145,7 +145,7 @@ def chat_with_openai(message, history):
         
         response = client.chat.completions.create(
             model="gpt-4o",
-            messages=messages,messages=messages,
+            messages=messages,
             temperature=0.1,
         )
         return response.choices[0].message.content, None
