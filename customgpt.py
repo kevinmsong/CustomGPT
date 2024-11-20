@@ -280,7 +280,7 @@ def main():
         
         # Chat input
         if prompt := st.chat_input("What would you like to discuss?"):
-            with st.chat_message("user"):with st.chat_message("user"):
+            with st.chat_message("user"):
                 st.write(prompt)
             
             new_message = {
