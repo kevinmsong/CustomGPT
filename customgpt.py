@@ -200,7 +200,7 @@ def main():
     # OpenAI API Key Input
     if not st.session_state.openai_key:
         with st.form("api_key_form"):
-            api_key = st.text_input("Enter your OpenAI API key:", type="password")api_key = st.text_input("Enter your OpenAI API key:", type="password")
+            api_key = st.text_input("Enter your OpenAI API key:", type="password")
             submitted = st.form_submit_button("Submit")
             if submitted:
                 if validate_api_key(api_key):
