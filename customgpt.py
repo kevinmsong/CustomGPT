@@ -238,9 +238,10 @@ if 'history_loaded' not in st.session_state:
 def main():
     st.title("🤖 OpenAI Chat Interface")
     
-    # Include custom CSS
+    # Add custom CSS
     st.markdown("""
         <style>
+            /* Custom styling for the chat interface */
             .main-container {
                 padding-bottom: 80px !important;
             }
@@ -263,8 +264,41 @@ def main():
                 z-index: 1000;
             }
             
+            /* Hide Streamlit branding */
             #MainMenu, footer {display: none;}
             .css-h5rgaw {visibility: hidden;}
+            
+            /* Additional styling for better visual hierarchy */
+            .stButton button {
+                width: 100%;
+                margin-bottom: 10px;
+            }
+            
+            .chat-message {
+                margin-bottom: 1rem;
+                padding: 0.5rem;
+                border-radius: 0.5rem;
+            }
+            
+            /* Improve scrollbar appearance */
+            .chat-container::-webkit-scrollbar {
+                width: 6px;
+                height: 6px;
+            }
+            
+            .chat-container::-webkit-scrollbar-track {
+                background: #f1f1f1;
+                border-radius: 3px;
+            }
+            
+            .chat-container::-webkit-scrollbar-thumb {
+                background: #888;
+                border-radius: 3px;
+            }
+            
+            .chat-container::-webkit-scrollbar-thumb:hover {
+                background: #555;
+            }
         </style>
     """, unsafe_allow_html=True)
     
@@ -364,56 +398,66 @@ def main():
                     st.session_state.openai_key = None
                     st.experimental_rerun()
     
+    # Chat column
     with col1:
-        st.header("Chat")
-        # Chat container for messages
-        chat_container = st.container()
+        # Container for chat messages
+        chat_placeholder = st.empty()
         
-        # Create a container for the fixed chat input at the bottom
-        with st.container():
+        # Create a container for the input box at the bottom
+        input_placeholder = st.empty()
+        
+        # Handle input first
+        with input_placeholder:
             st.markdown('<div class="chat-input-container">', unsafe_allow_html=True)
             prompt = st.chat_input("What would you like to discuss?")
             st.markdown('</div>', unsafe_allow_html=True)
-            
-            if prompt:
-                # Add user message
-                new_message = {
-                    "role": "user","role": "user",
-                    "content": prompt,
-                    "timestamp": datetime.now().isoformat()
-                }
-                st.session_state.messages.append(new_message)
-                save_chat_history(st.session_state.messages)save_chat_history(st.session_state.messages)
-                
-                # Get assistant response
-                response, error = chat_with_openai(prompt, st.session_state.messages)
-                if error:
-                    st.error(error)
-                else:
-                    assistant_message = {
-                        "role": "assistant",
-                        "content": response,
-                        "timestamp": datetime.now().isoformat()
-                    }
-                    st.session_state.messages.append(assistant_message)
-                    save_chat_history(st.session_state.messages)
-                    st.experimental_rerun()
         
         # Display messages in the chat container
-        with chat_container:
+        with chat_placeholder:
             st.markdown('<div class="chat-container">', unsafe_allow_html=True)
+            
+            # Get messages to display
             messages_to_show = (
                 st.session_state.messages if st.session_state.show_full_history 
                 else st.session_state.messages[-10:] if st.session_state.messages 
                 else []
             )
             
+            # Display messages
             for message in messages_to_show:
                 with st.chat_message(message["role"]):
                     st.write(message["content"])
                     if "timestamp" in message:
                         st.caption(f"Time: {message['timestamp']}")
+            
             st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Handle new messages
+        if prompt:
+            # Add user message
+            new_message = {
+                "role": "user",
+                "content": prompt,
+                "timestamp": datetime.now().isoformat()
+            }
+            st.session_state.messages.append(new_message)
+            save_chat_history(st.session_state.messages)
+            
+            # Get assistant response
+            response, error = chat_with_openai(prompt, st.session_state.messages)
+            if error:
+                st.error(error)st.error(error)
+            else:else:
+                assistant_message = {
+                    "role": "assistant",
+                    "content": response,
+                    "timestamp": datetime.now().isoformat()
+                }
+                st.session_state.messages.append(assistant_message)
+                save_chat_history(st.session_state.messages)
+            
+            # Rerun to update the chat display
+            st.experimental_rerun()
 
 if __name__ == "__main__":
     main()
