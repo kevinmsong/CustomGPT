@@ -7,8 +7,8 @@ import requests
 
 # Initialize session state variables if they don't exist
 if 'authenticated' not in st.session_state:
-    st.session_state.authenticated = Falsest.session_state.authenticated = False
-if 'messages' not in st.session_state:
+    st.session_state.authenticated = False
+if 'messages' not in st.session_state:if 'messages' not in st.session_state:
     st.session_state.messages = []
 if 'uploaded_files' not in st.session_state:
     st.session_state.uploaded_files = []
