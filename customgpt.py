@@ -268,7 +268,7 @@ def main():
     
     # Sidebar
     with st.sidebar:
-        st.header("Settings")st.header("Settings")
+        st.header("Settings")
         
         # Toggle for showing full history
         st.session_state.show_full_history = st.checkbox(
