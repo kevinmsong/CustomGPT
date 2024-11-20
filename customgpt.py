@@ -8,12 +8,21 @@ from PIL import Image
 import io
 import base64
 
-# Page config# Page config
+# Must be the first Streamlit command
 st.set_page_config(
-    page_title="OpenAI Chat Interface",
-    page_icon="🤖",
+    page_title="OpenAI Chat Interface",page_title="OpenAI Chat Interface",
+    page_icon="🤖",page_icon="🤖",
     layout="wide"
 )
+
+# Hide Streamlit branding
+hide_streamlit_style = """
+    <style>
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    </style>
+"""
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
 # Initialize session state variables if they don't exist
 if 'authenticated' not in st.session_state:
@@ -236,21 +245,6 @@ if 'history_loaded' not in st.session_state:
 # [Previous functions remain the same until main()]
 
 def main():
-    st.set_page_config(
-        page_title="OpenAI Chat Interface",
-        page_icon="🤖",
-        layout="wide"
-    )
-    
-    # Hide Streamlit branding
-    hide_streamlit_style = """
-        <style>
-        #MainMenu {visibility: hidden;}
-        footer {visibility: hidden;}
-        </style>
-    """
-    st.markdown(hide_streamlit_style, unsafe_allow_html=True)
-    
     st.title("🤖 OpenAI Chat Interface")
     
     # Load history at startup if not already loaded
@@ -347,11 +341,8 @@ def main():
                 st.session_state.openai_key = None
                 st.experimental_rerun()
     
-    # Main chat container
-    chat_container = st.container()
-    
-    # Empty space to push chat input to bottom
-    st.markdown("<br>" * 20, unsafe_allow_html=True)
+    # Main chat area
+    chat_placeholder = st.empty()
     
     # Chat input at bottom
     input_container = st.container()
@@ -359,14 +350,14 @@ def main():
         prompt = st.chat_input("What would you like to discuss?")
     
     # Display messages in chat container
-    with chat_container:
+    with chat_placeholder:
         messages_to_show = (
             st.session_state.messages if st.session_state.show_full_history 
             else st.session_state.messages[-10:] if st.session_state.messages 
             else []
         )
         
-        for message in messages_to_show:
+        for message in messages_to_show:for message in messages_to_show:
             with st.chat_message(message["role"]):
                 st.write(message["content"])
                 if "timestamp" in message:
@@ -384,7 +375,7 @@ def main():
         save_chat_history(st.session_state.messages)
         
         # Get assistant response
-        with st.chat_message("assistant"):
+        with st.chat_message("assistant"):with st.chat_message("assistant"):
             response, error = chat_with_openai(prompt, st.session_state.messages)
             if error:
                 st.error(error)
