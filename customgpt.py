@@ -4,6 +4,9 @@ import json
 import os
 from datetime import datetime
 import requests
+import base64
+from PIL import Image
+import io
 
 # Initialize session state variables if they don't exist
 if 'authenticated' not in st.session_state:
@@ -21,8 +24,39 @@ if 'history_loaded' not in st.session_state:
 
 # Configuration
 HISTORY_FILE = "chat_history.json"
-ALLOWED_TYPES = ["txt", "pdf", "csv", "json", "py", "md"]
+ALLOWED_TYPES = ["txt", "pdf", "csv", "json", "py", "md", "png", "jpg", "jpeg"]
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+MAX_IMAGE_SIZE = (1024, 1024)  # Maximum dimensions for images
+
+def process_image(uploaded_file):
+    """Process uploaded image file"""
+    try:
+        # Read the image
+        image_bytes = uploaded_file.getvalue()
+        image = Image.open(io.BytesIO(image_bytes))
+        
+        # Convert to RGB if necessary
+        if image.mode != 'RGB':
+            image = image.convert('RGB')
+        
+        # Resize if needed
+        image = resize_image(image, MAX_IMAGE_SIZE)
+        
+        # Save to buffer
+        buffer = io.BytesIO()
+        image.save(buffer, format="JPEG", quality=85)
+        return base64.b64encode(buffer.getvalue()).decode('utf-8')
+    
+    except Exception as e:
+        return None, f"Error processing image: {str(e)}"
+
+def resize_image(image, max_size):
+    """Resize image while maintaining aspect ratio"""
+    ratio = min(max_size[0] / image.size[0], max_size[1] / image.size[1])
+    if ratio < 1:
+        new_size = tuple(int(dim * ratio) for dim in image.size)
+        return image.resize(new_size, Image.LANCZOS)
+    return image
 
 def authenticate_app(password):
     """Authentication function for app password"""
@@ -124,9 +158,53 @@ def chat_with_openai(message, history):
     
     try:
         response = client.chat.completions.create(
-            model="gpt-4o",  # Fixed model name
+            model="gpt-4o",
             messages=messages,
             temperature=0.1,
+        )
+        return response.choices[0].message.content, None
+    except Exception as e:
+        return None, str(e)
+
+def chat_with_openai_vision(prompt, image_base64, history):
+    """Chat function that handles image analysis"""
+    client = openai.OpenAI(api_key=st.session_state.openai_key)
+    
+    # Prepare the messages
+    messages = [
+        {
+            "role": "system",
+            "content": "You are a helpful AI assistant capable of analyzing images and maintaining conversation history. When analyzing images, be detailed yet concise."
+        }
+    ]
+    
+    # Add history
+    messages.extend([
+        {"role": msg["role"], "content": msg["content"]}
+        for msg in history
+        if not isinstance(msg["content"], dict)  # Skip previous image messages
+    ])
+    
+    # Add image analysis request
+    messages.append({
+        "role": "user",
+        "content": [
+            {"type": "text", "text": prompt},
+            {
+                "type": "image_url",
+                "image_url": {
+                    "url": f"data:image/jpeg;base64,{image_base64}",
+                    "detail": "high"
+                }
+            }
+        ]
+    })
+    
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4-vision-preview",
+            messages=messages,
+            max_tokens=500,
         )
         return response.choices[0].message.content, None
     except Exception as e:
@@ -190,7 +268,7 @@ def main():
     
     # Sidebar
     with st.sidebar:
-        st.header("Settings")
+        st.header("Settings")st.header("Settings")
         
         # Toggle for showing full history
         st.session_state.show_full_history = st.checkbox(
@@ -200,84 +278,44 @@ def main():
         
         # File Upload Section
         st.header("File Upload")
-        uploaded_file = st.file_uploader(
-            "Upload a file to discuss",
+        uploaded_files = st.file_uploader(
+            "Upload files to discuss",
             type=ALLOWED_TYPES,
+            accept_multiple_files=True,
             help=f"Supported file types: {', '.join(ALLOWED_TYPES)}"
         )
         
-        if uploaded_file:
-            content, error = process_file(uploaded_file)
-            if error:
-                st.error(error)
-            else:
-                if st.button("Discuss this file"):
-                    file_prompt = f"I've uploaded a file named '{uploaded_file.name}'. Here's its content:\n\n{content}\n\nPlease analyze this content and provide your insights."
-                    new_message = {
-                        "role": "user",
-                        "content": file_prompt,
-                        "timestamp": datetime.now().isoformat()
-                    }
-                    st.session_state.messages.append(new_message)
-                    save_chat_history(st.session_state.messages)
-                    st.experimental_rerun()
-        
-        # Control buttons
-        if st.button("Clear Display"):
-            st.session_state.show_full_history = False
-            st.experimental_rerun()
+        if uploaded_files:
+            analyze_type = st.radio(
+                "Analysis type:",
+                ["Individual", "Comparative"],
+                disabled=len(uploaded_files) == 1
+            )
             
-        if st.button("Logout"):
-            st.session_state.authenticated = False
-            st.session_state.openai_key = None
-            st.session_state.messages = []
-            st.session_state.history_loaded = False
-            st.experimental_rerun()
-    
-    # Display chat messages
-    messages_to_display = (
-        st.session_state.messages if st.session_state.show_full_history 
-        else st.session_state.messages[-10:] if st.session_state.messages 
-        else []
-    )
-    
-    for message in messages_to_display:
-        with st.chat_message(message["role"]):
-            st.write(message["content"])
-            if "timestamp" in message:
-                st.caption(f"Time: {message['timestamp']}")
-    
-    # Chat input
-    if prompt := st.chat_input("What's on your mind?"):
-        # Add user message to state and display
-        new_message = {
-            "role": "user",
-            "content": prompt,
-            "timestamp": datetime.now().isoformat()
-        }
-        st.session_state.messages.append(new_message)
-        
-        with st.chat_message("user"):
-            st.write(prompt)
-            st.caption(f"Time: {new_message['timestamp']}")
-        
-        # Get and display assistant response
-        with st.chat_message("assistant"):
-            response, error = chat_with_openai(prompt, st.session_state.messages)
-            if error:
-                st.error(f"Error: {error}")
-            else:
-                st.write(response)
-                assistant_message = {
-                    "role": "assistant",
-                    "content": response,
-                    "timestamp": datetime.now().isoformat()
-                }
-                st.caption(f"Time: {assistant_message['timestamp']}")
-                st.session_state.messages.append(assistant_message)
-        
-        # Save updated history
-        save_chat_history(st.session_state.messages)
-
-if __name__ == "__main__":
-    main()
+            if st.button("Analyze Files"):
+                # Handle image files
+                image_files = [f for f in uploaded_files if f.type.lower().startswith('image/')]
+                other_files = [f for f in uploaded_files if not f.type.lower().startswith('image/')]
+                
+                if image_files:
+                    with st.spinner("Processing images..."):
+                        # Display images
+                        if analyze_type == "Comparative" and len(image_files) > 1:
+                            cols = st.columns(min(len(image_files), 3))
+                            for idx, image_file in enumerate(image_files):
+                                cols[idx % 3].image(image_file, use_column_width=True)
+                            
+                            # Process all images
+                            image_base64_list = []
+                            for img_file in image_files:
+                                img_base64 = process_image(img_file)
+                                image_base64_list.append(img_base64)
+                            
+                            # Create comparative analysis prompt
+                            file_names = [img.name for img in image_files]
+                            prompt = f"Please analyze and compare these {len(image_files)} images: {', '.join(file_names)}. Focus on key similarities and differences."
+                            
+                            # Process each image individually
+                            for idx, (img_file, img_base64) in enumerate(zip(image_files, image_base64_list)):
+                                response, error = chat_with_openai_vision(
+                                    f"This is image {idx + 1} of {len(image_files)}: {img_file.name}. Ple
