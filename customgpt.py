@@ -144,9 +144,9 @@ def chat_with_openai(message, history):
         messages.append({"role": "user", "content": message})
         
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-3.5-turbo",
             messages=messages,
-            temperature=0.1,
+            temperature=0.7,
         )
         return response.choices[0].message.content, None
     except Exception as e:
@@ -181,6 +181,42 @@ def chat_with_openai_vision(prompt, image_base64, history):
     except Exception as e:
         return None, str(e)
 
+def openai_auth_interface():
+    """Handle OpenAI API key authentication"""
+    st.header("OpenAI API Authentication")
+    
+    auth_method = st.radio(
+        "Choose authentication method:",
+        ["Use API Key from Secrets", "Enter API Key Manually"]
+    )
+    
+    if auth_method == "Use API Key from Secrets":
+        try:
+            api_key = st.secrets["openai_api_key"]
+            if validate_api_key(api_key):
+                st.session_state.openai_key = api_key
+                st.success("✅ Successfully loaded API key from secrets!")
+                return True
+            else:
+                st.error("❌ API key in secrets is invalid")
+                return False
+        except Exception as e:
+            st.error("❌ No API key found in secrets or key is invalid")
+            return False
+    else:
+        with st.form("api_key_form"):
+            api_key = st.text_input("Enter your OpenAI API key:", type="password")
+            submitted = st.form_submit_button("Submit")
+            if submitted:
+                if validate_api_key(api_key):
+                    st.session_state.openai_key = api_key
+                    st.success("✅ API key validated successfully!")
+                    return True
+                else:
+                    st.error("❌ Invalid API key!")
+                    return False
+    return False
+
 def main():
     st.title("🤖 OpenAI Chat Interface")
     
@@ -197,19 +233,10 @@ def main():
                     st.error("Incorrect password!")
         return
 
-    # OpenAI API Key Input
+    # OpenAI API Key Authentication
     if not st.session_state.openai_key:
-        with st.form("api_key_form"):
-            api_key = st.text_input("Enter your OpenAI API key:", type="password")
-            submitted = st.form_submit_button("Submit")
-            if submitted:
-                if validate_api_key(api_key):
-                    st.session_state.openai_key = api_key
-                    st.success("API key validated successfully!")
-                    st.experimental_rerun()
-                else:
-                    st.error("Invalid API key!")
-        return
+        if not openai_auth_interface():
+            return
 
     # Main Interface
     col1, col2 = st.columns([2, 1])
