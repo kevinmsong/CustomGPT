@@ -11,18 +11,9 @@ import base64
 # Must be the first Streamlit command
 st.set_page_config(
     page_title="OpenAI Chat Interface",page_title="OpenAI Chat Interface",
-    page_icon="🤖",page_icon="🤖",
+    page_icon="🤖",
     layout="wide"
 )
-
-# Hide Streamlit branding
-hide_streamlit_style = """
-    <style>
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    </style>
-"""
-st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
 # Initialize session state variables if they don't exist
 if 'authenticated' not in st.session_state:
@@ -35,6 +26,15 @@ if 'show_full_history' not in st.session_state:
     st.session_state.show_full_history = True
 if 'history_loaded' not in st.session_state:
     st.session_state.history_loaded = False
+
+# Hide Streamlit branding
+hide_streamlit_style = """
+    <style>
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    </style>
+"""
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
 # Configuration
 HISTORY_FILE = "chat_history.json"
@@ -155,14 +155,14 @@ def chat_with_openai(message, history):
         messages.append({"role": "user", "content": message})
         
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-3.5-turbo",  # Fixed model name
             messages=messages,
-            temperature=0.1,
+            temperature=0.7,
         )
         return response.choices[0].message.content, None
     except Exception as e:
         return None, str(e)
-
+        
 def chat_with_openai_vision(prompt, image_base64, history):
     """Chat function for image analysis"""
     try:
@@ -208,7 +208,7 @@ def openai_auth_interface():
                 st.session_state.openai_key = api_key
                 st.success("✅ Successfully loaded API key from secrets!")
                 return True
-            else:
+            else:else:
                 st.error("❌ API key in secrets is invalid")
                 return False
         except Exception as e:
@@ -227,22 +227,6 @@ def openai_auth_interface():
                     st.error("❌ Invalid API key!")
                     return False
     return False
-
-# [Previous imports and configurations remain the same...]
-
-# Initialize session state variables if they don't exist
-if 'authenticated' not in st.session_state:
-    st.session_state.authenticated = False
-if 'messages' not in st.session_state:
-    st.session_state.messages = []
-if 'openai_key' not in st.session_state:
-    st.session_state.openai_key = None
-if 'show_full_history' not in st.session_state:
-    st.session_state.show_full_history = True
-if 'history_loaded' not in st.session_state:
-    st.session_state.history_loaded = False
-
-# [Previous functions remain the same until main()]
 
 def main():
     st.title("🤖 OpenAI Chat Interface")
@@ -341,23 +325,23 @@ def main():
                 st.session_state.openai_key = None
                 st.experimental_rerun()
     
-    # Main chat area
-    chat_placeholder = st.empty()
+    # Main chat area with input at bottom
+    chat_container = st.container()
+    input_container = st.container()
     
     # Chat input at bottom
-    input_container = st.container()
     with input_container:
         prompt = st.chat_input("What would you like to discuss?")
     
     # Display messages in chat container
-    with chat_placeholder:
+    with chat_container:
         messages_to_show = (
             st.session_state.messages if st.session_state.show_full_history 
             else st.session_state.messages[-10:] if st.session_state.messages 
             else []
         )
         
-        for message in messages_to_show:for message in messages_to_show:
+        for message in messages_to_show:
             with st.chat_message(message["role"]):
                 st.write(message["content"])
                 if "timestamp" in message:
@@ -375,7 +359,7 @@ def main():
         save_chat_history(st.session_state.messages)
         
         # Get assistant response
-        with st.chat_message("assistant"):with st.chat_message("assistant"):
+        with st.chat_message("assistant"):
             response, error = chat_with_openai(prompt, st.session_state.messages)
             if error:
                 st.error(error)
