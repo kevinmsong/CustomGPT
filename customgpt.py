@@ -147,7 +147,7 @@ def main():
         
         if st.button("Clear History"):
             st.session_state.messages = []
-            st.session_state.uploaded_files = []st.session_state.uploaded_files = []
+            st.session_state.uploaded_files = []
             if os.path.exists(HISTORY_FILE):
                 os.remove(HISTORY_FILE)
             st.experimental_rerun()
@@ -161,7 +161,7 @@ def main():
         with st.chat_message(message["role"]):
             st.write(message["content"])
     
-    # Chat input
+    # Chat input# Chat input
     if prompt := st.chat_input("What's on your mind?"):
         # Display user message
         with st.chat_message("user"):
