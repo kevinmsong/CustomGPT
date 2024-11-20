@@ -24,6 +24,14 @@ HISTORY_FILE = "chat_history.json"
 ALLOWED_TYPES = ["txt", "pdf", "csv", "json", "py", "md"]
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 
+def authenticate_app(password):
+    """Authentication function for app password"""
+    try:
+        return password == st.secrets["app_password"]
+    except Exception as e:
+        st.error(f"Error accessing secrets: {str(e)}")
+        return False
+
 def validate_api_key(api_key):
     """Validate OpenAI API key"""
     try:
@@ -52,6 +60,47 @@ def save_chat_history(history):
     except Exception as e:
         st.error(f"Error saving chat history: {str(e)}")
 
+def process_file(uploaded_file):
+    """Process uploaded file and return its content"""
+    try:
+        file_extension = uploaded_file.name.split('.')[-1].lower()
+        
+        if file_extension not in ALLOWED_TYPES:
+            return None, f"File type .{file_extension} is not supported"
+        
+        if uploaded_file.size > MAX_FILE_SIZE:
+            return None, "File is too large (max 5MB)"
+        
+        # Read different file types
+        if file_extension == 'txt' or file_extension == 'py' or file_extension == 'md':
+            content = uploaded_file.getvalue().decode('utf-8')
+        elif file_extension == 'pdf':
+            try:
+                import PyPDF2
+                pdf_reader = PyPDF2.PdfReader(uploaded_file)
+                content = ""
+                for page in pdf_reader.pages:
+                    content += page.extract_text() + "\n"
+            except Exception as e:
+                return None, f"Error processing PDF: {str(e)}"
+        elif file_extension == 'csv':
+            try:
+                import pandas as pd
+                df = pd.read_csv(uploaded_file)
+                content = df.to_string()
+            except Exception as e:
+                return None, f"Error processing CSV: {str(e)}"
+        elif file_extension == 'json':
+            try:
+                content = json.loads(uploaded_file.getvalue())
+                content = json.dumps(content, indent=2)
+            except Exception as e:
+                return None, f"Error processing JSON: {str(e)}"
+        
+        return content, None
+    except Exception as e:
+        return None, f"Error processing file: {str(e)}"
+
 def chat_with_openai(message, history):
     """Chat function that uses full history for context"""
     client = openai.OpenAI(api_key=st.session_state.openai_key)
@@ -75,26 +124,45 @@ def chat_with_openai(message, history):
     
     try:
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4o",  # Fixed model name
             messages=messages,
-            temperature=0.7,
+            temperature=0.1,
         )
         return response.choices[0].message.content, None
     except Exception as e:
         return None, str(e)
 
-def get_previous_messages(num_messages=5):
-    """Get the last N messages from history"""
-    history = load_chat_history()
-    return history[-num_messages:] if history else []
-
-def format_chat_history(history):
-    """Format chat history for display"""
-    formatted = []
-    for msg in history:
-        timestamp = msg.get('timestamp', 'Unknown time')
-        formatted.append(f"{msg['role'].capitalize()} ({timestamp}): {msg['content']}")
-    return "\n\n".join(formatted)
+def openai_auth_interface():
+    """Handle OpenAI authentication interface"""
+    st.sidebar.header("OpenAI Authentication")
+    
+    use_secrets_key = st.sidebar.checkbox("Use API key from secrets")
+    
+    if use_secrets_key:
+        try:
+            api_key = st.secrets["openai_api_key"]
+            if validate_api_key(api_key):
+                st.session_state.openai_key = api_key
+                st.sidebar.success("Using API key from secrets!")
+                return True
+            else:
+                st.sidebar.error("API key from secrets is invalid!")
+                return False
+        except Exception as e:
+            st.sidebar.error("No API key found in secrets or key is invalid.")
+            return False
+    else:
+        api_key = st.sidebar.text_input("Enter OpenAI API Key:", type="password")
+        if st.sidebar.button("Validate API Key"):
+            if validate_api_key(api_key):
+                st.session_state.openai_key = api_key
+                st.sidebar.success("API key validated successfully!")
+                return True
+            else:
+                st.sidebar.error("Invalid API key!")
+                return False
+    
+    return False
 
 def main():
     st.title("🤖 OpenAI Chat Interface")
@@ -130,17 +198,6 @@ def main():
             value=st.session_state.show_full_history
         )
         
-        # Add history summary
-        st.header("Chat History Summary")
-        recent_messages = get_previous_messages(5)
-        if recent_messages:
-            st.text_area(
-                "Recent Messages",
-                value=format_chat_history(recent_messages),
-                height=200,
-                disabled=True
-            )
-        
         # File Upload Section
         st.header("File Upload")
         uploaded_file = st.file_uploader(
@@ -167,8 +224,7 @@ def main():
         
         # Control buttons
         if st.button("Clear Display"):
-            st.session_state.messages = load_chat_history()  # Reload full history
-            st.session_state.show_full_history = False  # Hide full history
+            st.session_state.show_full_history = False
             st.experimental_rerun()
             
         if st.button("Logout"):
