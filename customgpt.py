@@ -367,7 +367,7 @@ def main():
         )
         
         for message in messages_to_show:
-            with st.chat_message(message["role"]):with st.chat_message(message["role"]):
+            with st.chat_message(message["role"]):
                 st.write(message["content"])
                 if "timestamp" in message:
                     st.caption(f"Time: {message['timestamp']}")
