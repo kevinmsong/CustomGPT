@@ -7,7 +7,7 @@ import requests
 
 # Initialize session state variables if they don't exist
 if 'authenticated' not in st.session_state:
-    st.session_state.authenticated = False
+    st.session_state.authenticated = Falsest.session_state.authenticated = False
 if 'messages' not in st.session_state:
     st.session_state.messages = []
 if 'uploaded_files' not in st.session_state:
@@ -225,7 +225,7 @@ def main():
     # Display chat messages
     for message in display_messages:
         with st.chat_message(message["role"]):
-            st.write(message["content"])st.write(message["content"])
+            st.write(message["content"])
     
     # Chat input
     if prompt := st.chat_input("What's on your mind?"):
