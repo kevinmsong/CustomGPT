@@ -184,7 +184,7 @@ def chat_with_openai_vision(prompt, image_base64, history):
         ]
         
         response = client.chat.completions.create(
-            model="gpt-4-vision-preview",
+            model="gpt-4o",
             messages=messages,
             max_tokens=500,
         )
