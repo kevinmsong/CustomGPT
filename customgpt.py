@@ -1,7 +1,7 @@
 import streamlit as st
 import openai
 import json
-import os
+import osimport os
 from datetime import datetime
 import requests
 from PIL import Image
@@ -10,7 +10,7 @@ import base64
 
 # Must be the first Streamlit command
 st.set_page_config(
-    page_title="OpenAI Chat Interface",page_title="OpenAI Chat Interface",page_title="OpenAI Chat Interface",page_title="OpenAI Chat Interface",
+    page_title="OpenAI Chat Interface",
     page_icon="🤖",
     layout="wide"
 )
