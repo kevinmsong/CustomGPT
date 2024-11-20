@@ -10,7 +10,7 @@ import base64
 
 # Must be the first Streamlit command
 st.set_page_config(
-    page_title="OpenAI Chat Interface",page_title="OpenAI Chat Interface",
+    page_title="OpenAI Chat Interface",page_title="OpenAI Chat Interface",page_title="OpenAI Chat Interface",page_title="OpenAI Chat Interface",
     page_icon="🤖",
     layout="wide"
 )
@@ -155,21 +155,21 @@ def chat_with_openai(message, history):
         messages.append({"role": "user", "content": message})
         
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",  # Fixed model name
+            model="gpt-4o",  # Fixed model name
             messages=messages,
-            temperature=0.7,
+            temperature=0.1,
         )
         return response.choices[0].message.content, None
     except Exception as e:
         return None, str(e)
         
-def chat_with_openai_vision(prompt, image_base64, history):
+def chat_with_openai_vision(prompt, image_base64, history):def chat_with_openai_vision(prompt, image_base64, history):
     """Chat function for image analysis"""
     try:
         client = openai.OpenAI(api_key=st.session_state.openai_key)
         messages = [
             {
-                "role": "user",
+                "role": "user","role": "user",
                 "content": [
                     {"type": "text", "text": prompt},
                     {
@@ -208,7 +208,7 @@ def openai_auth_interface():
                 st.session_state.openai_key = api_key
                 st.success("✅ Successfully loaded API key from secrets!")
                 return True
-            else:else:
+            else:
                 st.error("❌ API key in secrets is invalid")
                 return False
         except Exception as e:
