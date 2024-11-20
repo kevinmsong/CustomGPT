@@ -18,7 +18,7 @@ if 'show_full_history' not in st.session_state:
     st.session_state.show_full_history = True
 
 # Configuration
-HISTORY_FILE = "chat_history.json"
+HISTORY_FILE = "chat_history.json"  # Simple file name in current directory
 ALLOWED_TYPES = ["txt", "pdf", "csv", "json", "py", "md"]
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 
@@ -33,17 +33,21 @@ def validate_api_key(api_key):
 
 def load_chat_history():
     """Load chat history from JSON file"""
-    if os.path.exists(HISTORY_FILE):
-        with open(HISTORY_FILE, 'r') as f:
-            return json.load(f)
+    try:
+        if os.path.exists(HISTORY_FILE):
+            with open(HISTORY_FILE, 'r') as f:
+                return json.load(f)
+    except Exception as e:
+        st.error(f"Error loading chat history: {str(e)}")
     return []
 
 def save_chat_history(history):
     """Save chat history to JSON file"""
-    if not os.path.exists(os.path.dirname(HISTORY_FILE)):
-        os.makedirs(os.path.dirname(HISTORY_FILE))
-    with open(HISTORY_FILE, 'w') as f:
-        json.dump(history, f, indent=2)
+    try:
+        with open(HISTORY_FILE, 'w') as f:
+            json.dump(history, f, indent=2)
+    except Exception as e:
+        st.error(f"Error saving chat history: {str(e)}")
 
 def get_full_context():
     """Get full chat history for context"""
