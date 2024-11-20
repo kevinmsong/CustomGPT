@@ -14,6 +14,8 @@ if 'uploaded_files' not in st.session_state:
     st.session_state.uploaded_files = []
 if 'openai_key' not in st.session_state:
     st.session_state.openai_key = None
+if 'show_full_history' not in st.session_state:
+    st.session_state.show_full_history = True
 
 # Configuration
 HISTORY_FILE = "chat_history.json"
@@ -24,26 +26,31 @@ def validate_api_key(api_key):
     """Validate OpenAI API key"""
     try:
         client = openai.OpenAI(api_key=api_key)
-        # Make a simple API call to validate the key
         client.models.list()
         return True
     except:
         return False
 
-# Load chat history from JSON file
 def load_chat_history():
+    """Load chat history from JSON file"""
     if os.path.exists(HISTORY_FILE):
         with open(HISTORY_FILE, 'r') as f:
             return json.load(f)
     return []
 
-# Save chat history to JSON file
 def save_chat_history(history):
+    """Save chat history to JSON file"""
+    if not os.path.exists(os.path.dirname(HISTORY_FILE)):
+        os.makedirs(os.path.dirname(HISTORY_FILE))
     with open(HISTORY_FILE, 'w') as f:
         json.dump(history, f, indent=2)
 
-# Authentication function for app password
+def get_full_context():
+    """Get full chat history for context"""
+    return load_chat_history()
+
 def authenticate_app(password):
+    """Authentication function for app password"""
     return password == st.secrets["app_password"]
 
 def process_file(uploaded_file):
@@ -87,22 +94,24 @@ def process_file(uploaded_file):
     except Exception as e:
         return None, f"Error processing file: {str(e)}"
 
-# Chat function
-def chat_with_openai(message, history):
+def chat_with_openai(message, visible_history):
+    """Chat function that uses full history for context"""
     client = openai.OpenAI(api_key=st.session_state.openai_key)
     
-    # Prepare the messages including history
+    # Get full history for context
+    full_history = get_full_context()
+    
+    # Prepare the messages including full history
     messages = []
-    for msg in history:
+    for msg in full_history:
         messages.append({"role": msg["role"], "content": msg["content"]})
     messages.append({"role": "user", "content": message})
     
-    # Get response from OpenAI
     try:
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4o",
             messages=messages,
-            temperature=0.7,
+            temperature=0.1,
         )
         return response.choices[0].message.content, None
     except Exception as e:
@@ -112,7 +121,6 @@ def openai_auth_interface():
     """Handle OpenAI authentication interface"""
     st.sidebar.header("OpenAI Authentication")
     
-    # Option to use API key from secrets
     use_secrets_key = st.sidebar.checkbox("Use API key from secrets")
     
     if use_secrets_key:
@@ -129,7 +137,6 @@ def openai_auth_interface():
             st.sidebar.error("No API key found in secrets or key is invalid.")
             return False
     else:
-        # Manual API key entry
         api_key = st.sidebar.text_input("Enter OpenAI API Key:", type="password")
         if st.sidebar.button("Validate API Key"):
             if validate_api_key(api_key):
@@ -142,7 +149,6 @@ def openai_auth_interface():
     
     return False
 
-# Main app
 def main():
     st.title("🤖 OpenAI Chat Interface")
     
@@ -164,6 +170,15 @@ def main():
     
     # Sidebar
     with st.sidebar:
+        st.header("Settings")
+        
+        # Toggle for showing full history
+        st.session_state.show_full_history = st.checkbox(
+            "Show Full History", 
+            value=st.session_state.show_full_history
+        )
+        
+        # File Upload Section
         st.header("File Upload")
         uploaded_file = st.file_uploader(
             "Upload a file to discuss",
@@ -178,41 +193,39 @@ def main():
             else:
                 if st.button("Discuss this file"):
                     file_prompt = f"I've uploaded a file named '{uploaded_file.name}'. Here's its content:\n\n{content}\n\nPlease analyze this content and provide your insights."
-                    st.session_state.messages.append({
+                    # Add to session messages and save to history
+                    new_message = {
                         "role": "user",
                         "content": file_prompt,
                         "timestamp": datetime.now().isoformat()
-                    })
-                    save_chat_history(st.session_state.messages)
+                    }
+                    st.session_state.messages.append(new_message)
+                    full_history = load_chat_history()
+                    full_history.append(new_message)
+                    save_chat_history(full_history)
                     st.experimental_rerun()
         
-        # Display uploaded files
-        if st.session_state.uploaded_files:
-            st.write("Uploaded files:")
-            for file in st.session_state.uploaded_files:
-                st.write(f"- {file}")
-        
-        # Logout and Clear History buttons
+        # Control buttons
+        if st.button("Clear Display"):
+            st.session_state.messages = []
+            st.experimental_rerun()
+            
         if st.button("Logout"):
             st.session_state.authenticated = False
             st.session_state.openai_key = None
-            st.experimental_rerun()
-        
-        if st.button("Clear History"):
             st.session_state.messages = []
-            st.session_state.uploaded_files = []
-            if os.path.exists(HISTORY_FILE):
-                os.remove(HISTORY_FILE)
             st.experimental_rerun()
     
-    # Load chat history
-    if not st.session_state.messages:
-        st.session_state.messages = load_chat_history()
+    # Chat interface
+    if st.session_state.show_full_history:
+        display_messages = load_chat_history()
+    else:
+        display_messages = st.session_state.messages
     
-    # Display chat history
-    for message in st.session_state.messages:
+    # Display chat messages
+    for message in display_messages:
         with st.chat_message(message["role"]):
-            st.write(message["content"])
+            st.write(message["content"])st.write(message["content"])
     
     # Chat input
     if prompt := st.chat_input("What's on your mind?"):
@@ -220,12 +233,19 @@ def main():
         with st.chat_message("user"):
             st.write(prompt)
         
-        # Add user message to history
-        st.session_state.messages.append({
+        # Create new message
+        new_message = {
             "role": "user",
             "content": prompt,
             "timestamp": datetime.now().isoformat()
-        })
+        }
+        
+        # Add to session messages
+        st.session_state.messages.append(new_message)
+        
+        # Add to full history
+        full_history = load_chat_history()
+        full_history.append(new_message)
         
         # Get and display assistant response
         with st.chat_message("assistant"):
@@ -234,15 +254,18 @@ def main():
                 st.error(f"Error: {error}")
             else:
                 st.write(response)
-                # Add assistant response to history
-                st.session_state.messages.append({
+                # Create assistant message
+                assistant_message = {
                     "role": "assistant",
                     "content": response,
                     "timestamp": datetime.now().isoformat()
-                })
+                }
+                # Add to session messages and full history
+                st.session_state.messages.append(assistant_message)
+                full_history.append(assistant_message)
         
         # Save updated history
-        save_chat_history(st.session_state.messages)
+        save_chat_history(full_history)
 
 if __name__ == "__main__":
     main()
