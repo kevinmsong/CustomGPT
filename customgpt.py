@@ -163,7 +163,7 @@ def chat_with_openai(message, history):
     except Exception as e:
         return None, str(e)
         
-def chat_with_openai_vision(prompt, image_base64, history):def chat_with_openai_vision(prompt, image_base64, history):
+def chat_with_openai_vision(prompt, image_base64, history):
     """Chat function for image analysis"""
     try:
         client = openai.OpenAI(api_key=st.session_state.openai_key)
