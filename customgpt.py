@@ -272,7 +272,7 @@ def main():
         
         # Toggle for showing full history
         st.session_state.show_full_history = st.checkbox(
-            "Show Full History", 
+            "Show Full History", "Show Full History",
             value=st.session_state.show_full_history
         )
         
@@ -318,4 +318,7 @@ def main():
                             # Process each image individually
                             for idx, (img_file, img_base64) in enumerate(zip(image_files, image_base64_list)):
                                 response, error = chat_with_openai_vision(
-                                    f"This is image {idx + 1} of {len(image_files)}: {img_file.name}. Ple
+                                    f"This is image {idx + 1} of {len(image_files)}: {img_file.name}. Please analyze it.",
+                                    img_base64,
+                                    st.session_state.messages
+                                )
