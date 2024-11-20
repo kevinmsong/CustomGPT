@@ -3,9 +3,7 @@ import openai
 import json
 import os
 from datetime import datetime
-import base64
 import requests
-import keyring
 
 # Initialize session state variables if they don't exist
 if 'authenticated' not in st.session_state:
@@ -21,21 +19,6 @@ if 'openai_key' not in st.session_state:
 HISTORY_FILE = "chat_history.json"
 ALLOWED_TYPES = ["txt", "pdf", "csv", "json", "py", "md"]
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
-
-def save_api_key(api_key):
-    """Save API key securely using keyring"""
-    try:
-        keyring.set_password("openai_chat_app", "api_key", api_key)
-        return True
-    except:
-        return False
-
-def load_api_key():
-    """Load API key from keyring"""
-    try:
-        return keyring.get_password("openai_chat_app", "api_key")
-    except:
-        return None
 
 def validate_api_key(api_key):
     """Validate OpenAI API key"""
@@ -117,9 +100,9 @@ def chat_with_openai(message, history):
     # Get response from OpenAI
     try:
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-3.5-turbo",
             messages=messages,
-            temperature=0.1,
+            temperature=0.7,
         )
         return response.choices[0].message.content, None
     except Exception as e:
@@ -128,37 +111,34 @@ def chat_with_openai(message, history):
 def openai_auth_interface():
     """Handle OpenAI authentication interface"""
     st.sidebar.header("OpenAI Authentication")
-    auth_method = st.sidebar.radio(
-        "Choose authentication method:",
-        ["Use API Key", "Load Saved API Key"]
-    )
     
-    if auth_method == "Use API Key":
-        api_key = st.sidebar.text_input("Enter OpenAI API Key:", type="password")
-        if st.sidebar.button("Validate and Save API Key"):
+    # Option to use API key from secrets
+    use_secrets_key = st.sidebar.checkbox("Use API key from secrets")
+    
+    if use_secrets_key:
+        try:
+            api_key = st.secrets["openai_api_key"]
             if validate_api_key(api_key):
                 st.session_state.openai_key = api_key
-                if save_api_key(api_key):
-                    st.sidebar.success("API key validated and saved successfully!")
-                else:
-                    st.sidebar.warning("API key validated but couldn't be saved securely.")
+                st.sidebar.success("Using API key from secrets!")
+                return True
+            else:
+                st.sidebar.error("API key from secrets is invalid!")
+                return False
+        except Exception as e:
+            st.sidebar.error("No API key found in secrets or key is invalid.")
+            return False
+    else:
+        # Manual API key entry
+        api_key = st.sidebar.text_input("Enter OpenAI API Key:", type="password")
+        if st.sidebar.button("Validate API Key"):
+            if validate_api_key(api_key):
+                st.session_state.openai_key = api_key
+                st.sidebar.success("API key validated successfully!")
                 return True
             else:
                 st.sidebar.error("Invalid API key!")
                 return False
-    else:
-        saved_key = load_api_key()
-        if saved_key:
-            if validate_api_key(saved_key):
-                st.session_state.openai_key = saved_key
-                st.sidebar.success("Loaded saved API key successfully!")
-                return True
-            else:
-                st.sidebar.error("Saved API key is invalid!")
-                return False
-        else:
-            st.sidebar.warning("No saved API key found.")
-            return False
     
     return False
 
@@ -220,7 +200,7 @@ def main():
         
         if st.button("Clear History"):
             st.session_state.messages = []
-            st.session_state.uploaded_files = []
+            st.session_state.uploaded_files = []st.session_state.uploaded_files = []
             if os.path.exists(HISTORY_FILE):
                 os.remove(HISTORY_FILE)
             st.experimental_rerun()
